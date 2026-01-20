@@ -1,20 +1,129 @@
 <!DOCTYPE html>
-<html lang="zh">
+<html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>我的博客</title>
-    <link rel="stylesheet" href="style.css">
-    <script src="https://cdn.jsdelivr.net/npm/tsparticles@2.9.3/tsparticles.bundle.min.js"></script>
+    <title>心境日历 · 独处时刻</title>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        :root { --bg-color: #f6f6f2; --text-color: #2c2c2c; --accent-red: #9e2a2a; }
+        body { margin: 0; background-color: var(--bg-color); display: flex; flex-direction: column; justify-content: center; align-items: center; min-height: 100vh; font-family: 'Noto Serif SC', serif; transition: background 0.8s ease; }
+        .mood-selector-wrap { margin-bottom: 30px; text-align: center; }
+        .mood-selector-wrap h2 { font-size: 1rem; font-weight: 400; color: #777; margin-bottom: 15px; letter-spacing: 2px; }
+        #mood-select { padding: 8px 15px; border: 1px solid #ccc; border-radius: 4px; background: #fff; font-family: inherit; cursor: pointer; outline: none; }
+        .calendar-card { width: 320px; background: #fff; padding: 40px; box-shadow: 0 15px 45px rgba(0,0,0,0.06); border-top: 15px solid var(--accent-red); position: relative; }
+        .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #f0f0f0; padding-bottom: 15px; margin-bottom: 25px; }
+        #date-text { font-size: 1.1rem; letter-spacing: 1px; }
+        .yi-box { color: var(--accent-red); font-weight: bold; }
+        .yi-tag { border: 1px solid var(--accent-red); padding: 0 4px; margin-right: 5px; }
+        .day-main { text-align: center; margin: 25px 0; }
+        #day-num { font-size: 7rem; font-weight: 700; line-height: 1; margin: 0; }
+        #weekday { font-size: 1.2rem; color: #888; letter-spacing: 5px; margin-top: 10px; }
+        .quote-wrap { margin-top: 35px; min-height: 160px; display: flex; flex-direction: column; justify-content: center; border-top: 1px dashed #eee; padding-top: 25px; }
+        #quote-content { font-size: 1.1rem; line-height: 1.8; text-align: justify; transition: opacity 0.4s; }
+        #quote-from { text-align: right; font-size: 0.85rem; color: #999; margin-top: 15px; }
+        .loading { opacity: 0; }
+        .footer { margin-top: 40px; color: #ccc; font-size: 0.7rem; letter-spacing: 3px; }
+    </style>
 </head>
 <body>
-    <div id="particles-js"></div>
-    <div class="content">
-        <h1>欢迎来到我的博客</h1>
-        <p>遇见你真有趣</p>
-     <button id="load-posts">我的文章</button>
-    <ul id="post-list"></ul>
+
+    <div class="mood-selector-wrap">
+        <h2>此 刻 心 境</h2>
+        <select id="mood-select" onchange="updateAll()">
+            <option value="very-good">非常好，万物可爱</option>
+            <option value="good">还不错，心平气和</option>
+            <option value="neutral" selected>挺一般的，日子如常</option>
+            <option value="bad">不太好，有些丧气</option>
+            <option value="very-bad">非常差，需要拥抱</option>
+        </select>
     </div>
-    <script src="script.js"></script>
+
+    <div class="calendar-card">
+        <div class="header">
+            <span id="date-text">2026.01.20</span>
+            <div class="yi-box"><span class="yi-tag">宜</span><span id="yi-content">静坐</span></div>
+        </div>
+        <div class="day-main">
+            <h1 id="day-num">20</h1>
+            <div id="weekday">星期二</div>
+        </div>
+        <div class="quote-wrap">
+            <div id="quote-content">正在翻开新的一页...</div>
+            <div id="quote-from"></div>
+        </div>
+    </div>
+
+    <p class="footer">文学 · 诗词 · 动画 · 影视</p>
+
+    <script>
+        const moodMatrix = {
+            'very-good': { types: ['i', 'd'], yi: ['登高', '远行', '举杯'], bg: '#fdfcf0' },
+            'good': { types: ['a', 'h'], yi: ['漫步', '拾翠', '悦己'], bg: '#f9f9f5' },
+            'neutral': { types: ['d', 'h', 'a', 'i'], yi: ['读书', '听歌', '洒扫'], bg: '#f6f6f2' },
+            'bad': { types: ['d', 'i'], yi: ['冥想', '早睡', '放空'], bg: '#f0f2f5' },
+            'very-bad': { types: ['d', 'h'], yi: ['释怀', '哭泣', '自愈'], bg: '#eceff1' }
+        };
+
+        const comfortLibrary = [
+            { hitokoto: "你要允许一些断裂发生。允许原本紧密的东西出现缝隙。那是光照进来的地方。", from: "文学精选" },
+            { hitokoto: "哪怕是这种天气，也要努力开花呀。", from: "《言叶之庭》" },
+            { hitokoto: "所有你认为无法度过的长夜，天最终都会亮起来。", from: "影视精选" }
+        ];
+
+        function initDate() {
+            const now = new Date();
+            document.getElementById('date-text').innerText = `${now.getFullYear()}.${(now.getMonth()+1).toString().padStart(2,'0')}.${now.getDate().toString().padStart(2,'0')}`;
+            document.getElementById('day-num').innerText = now.getDate();
+            document.getElementById('weekday').innerText = ["星期日", "星期一", "星期二", "星期三", "星期四", "星期五", "星期六"][now.getDay()];
+        }
+
+        async function updateAll() {
+            const mood = document.getElementById('mood-select').value;
+            const config = moodMatrix[mood];
+            const contentEl = document.getElementById('quote-content');
+            const fromEl = document.getElementById('quote-from');
+            
+            document.body.style.backgroundColor = config.bg;
+            contentEl.classList.add('loading');
+            document.getElementById('yi-content').innerText = config.yi[Math.floor(Math.random()*config.yi.length)];
+
+            let finalQuote = null;
+
+            // 针对差心情的特殊处理：30% 概率触发本地治愈库，确保100%中文且温馨
+            if ((mood === 'bad' || mood === 'very-bad') && Math.random() > 0.7) {
+                finalQuote = comfortLibrary[Math.floor(Math.random()*comfortLibrary.length)];
+            } else {
+                // 否则从 API 获取
+                const type = config.types[Math.floor(Math.random()*config.types.length)];
+                finalQuote = await fetchChineseQuote(type);
+            }
+
+            setTimeout(() => {
+                contentEl.innerText = finalQuote.hitokoto;
+                fromEl.innerText = `—— ${finalQuote.from}`;
+                contentEl.classList.remove('loading');
+            }, 400);
+        }
+
+        async function fetchChineseQuote(type) {
+            try {
+                for(let i=0; i<5; i++) { // 尝试5次确保语种和分类
+                    const res = await fetch(`https://v1.hitokoto.cn/?c=${type}`);
+                    const data = await res.json();
+                    // 正则判断：包含中文字符 且 长度在 15-80 字之间（日历显示美观）
+                    if (/[\u4e00-\u9fa5]/.test(data.hitokoto) && data.hitokoto.length < 80) {
+                        return data;
+                    }
+                }
+                return comfortLibrary[0];
+            } catch (e) {
+                return comfortLibrary[0];
+            }
+        }
+
+        initDate();
+        updateAll();
+    </script>
 </body>
 </html>
